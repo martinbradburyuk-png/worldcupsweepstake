@@ -73,7 +73,7 @@ const FIXTURES = [
   {date:"Sat 13 Jun",group:"C",home:"Brazil",away:"Morocco",time:"11pm",hg:1, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"C",home:"Haiti",away:"Scotland",time:"2am",hg:0, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"D",home:"Australia",away:"Turkey",time:"5pm",hg:2, awg:0, status:"FT"},
-  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:null,awg:null,status:null},
+  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:6, awg:1, status:"LIVE"},
   {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:null,awg:null,status:null},
