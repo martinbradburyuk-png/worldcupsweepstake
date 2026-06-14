@@ -1,3 +1,19 @@
+/*
+ * FAMILY WORLD CUP 2026 — Sweepstake Tracker
+ * ------------------------------------------
+ * HOW TO USE IN CODESANDBOX:
+ * 1. Go to codesandbox.io → Create → "React" template (plain JS, not TS)
+ * 2. Open the file src/App.js, select all, delete
+ * 3. Paste this entire file in its place, then Save (Cmd/Ctrl+S)
+ * 4. The preview on the right renders instantly. Click Share for a permanent URL.
+ *
+ * TO UPDATE RESULTS each day:
+ *   Find the match in the FIXTURES array below and change:
+ *     hg:null, awg:null, status:null      (not played)
+ *   to e.g.:
+ *     hg:2, awg:1, status:"FT"            (home 2, away 1, full time)
+ *   The league table recalculates itself automatically.
+ */
 import { useState } from "react";
 
 const FAMILY = {
@@ -57,7 +73,7 @@ const FIXTURES = [
   {date:"Sat 13 Jun",group:"C",home:"Brazil",away:"Morocco",time:"11pm",hg:1, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"C",home:"Haiti",away:"Scotland",time:"2am",hg:0, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"D",home:"Australia",away:"Turkey",time:"5pm",hg:2, awg:0, status:"FT"},
-  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:4, awg:1, status:"LIVE"},
+  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:null,awg:null,status:null},
   {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:null,awg:null,status:null},
@@ -122,13 +138,6 @@ const FIXTURES = [
   {date:"Sun 28 Jun",group:"J",home:"Algeria",away:"Austria",time:"3am",hg:null,awg:null,status:null},
   {date:"Sun 28 Jun",group:"J",home:"Jordan",away:"Argentina",time:"3am",hg:null,awg:null,status:null},
 ];
-
-// ── Daily sizzle (update each matchday) ───────────────────────────────────────
-const TODAY_LABEL = "Sun 14 Jun";
-const SIZZLE = {
-  "Sat 13 Jun": "Buckle up, family — today the gloves come off. First, Karen's Qatar rolls the dice against Anita's Switzerland (8pm) — Anita's already strutting after Mexico's opening win, so Karen's desperate to wipe the smirk off her face. Then the big one: Harry's mighty Brazil struts out against Stan's Morocco (11pm). Stan's riding high after USA battered Paraguay 4–1, and he'd love nothing more than to humble the five-time champs and the family favourite in one go. Two matches, two family feuds, zero mercy. Get the snacks in.",
-  "Sun 14 Jun": "Sunday delivers carnage, family. Rose's plucky Scotland have already mugged Darren's Haiti 1–0, and Linda's Australia stunned Martin's Turkey 2–0 — so Martin's Mach 1 swagger has taken an early dent. Now the rest unfolds: Stan's Ivory Coast take on Vicky's Ecuador (6pm), then Linda's Netherlands chase a second scalp against Kitty's Japan (9pm). Linda's on a roll and gunning for the top of the table — can anyone stop her? Stan's quietly assembling a powerhouse too. Grudges everywhere you look.",
-};
 
 // ── League table calculation ──────────────────────────────────────────────────
 function buildLeagueTable() {
@@ -447,23 +456,6 @@ export default function App() {
         {/* ── FIXTURES TAB ── */}
         {view === "fixtures" && (
           <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
-            {SIZZLE[TODAY_LABEL] && (
-              <div style={{
-                background:"linear-gradient(135deg,#f39c12,#e67e22)",
-                borderRadius:12, padding:"14px 16px", marginBottom:16,
-                boxShadow:"0 4px 16px rgba(243,156,18,0.3)",
-              }}>
-                <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:6 }}>
-                  <span style={{ fontSize:18 }}>⚡</span>
-                  <span style={{ color:"#fff", fontWeight:900, fontSize:14, letterSpacing:"0.03em" }}>
-                    TODAY'S SIZZLE · {TODAY_LABEL}
-                  </span>
-                </div>
-                <p style={{ color:"#fff", margin:0, fontSize:13, lineHeight:1.5, fontWeight:500 }}>
-                  {SIZZLE[TODAY_LABEL]}
-                </p>
-              </div>
-            )}
             <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16, alignItems:"flex-end" }}>
               {[
                 ["Group","selGroup",["All",...GROUPS.map(g=>`Group ${g}`)],["All",...GROUPS]],
