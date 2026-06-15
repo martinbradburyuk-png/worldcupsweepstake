@@ -14,7 +14,7 @@
  *     hg:2, awg:1, status:"FT"            (home 2, away 1, full time)
  *   The league table recalculates itself automatically.
  */
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const FAMILY = {
   STAN:   ["Czechia","Morocco","Ivory Coast","USA"],
@@ -73,10 +73,10 @@ const FIXTURES = [
   {date:"Sat 13 Jun",group:"C",home:"Brazil",away:"Morocco",time:"11pm",hg:1, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"C",home:"Haiti",away:"Scotland",time:"2am",hg:0, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"D",home:"Australia",away:"Turkey",time:"5pm",hg:2, awg:0, status:"FT"},
-  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:7, awg:1, status:"FT"},
-  {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:2, awg:2, status:"FT"},
-  {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:1, awg:0, status:"FT"},
-  {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:5, awg:1, status:"FT"},
+  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:null,awg:null,status:null},
+  {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:null,awg:null,status:null},
+  {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:null,awg:null,status:null},
+  {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"H",home:"Spain",away:"Cape Verde",time:"5pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"G",home:"Belgium",away:"Egypt",time:"8pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"H",home:"Saudi Arabia",away:"Uruguay",time:"11pm",hg:null,awg:null,status:null},
@@ -140,12 +140,12 @@ const FIXTURES = [
 ];
 
 // ── League table calculation ──────────────────────────────────────────────────
-function buildLeagueTable() {
+function buildLeagueTable(fixtures) {
   const stats = {};
   Object.keys(FAMILY).forEach(name => {
     stats[name] = { p:0, w:0, d:0, l:0, gf:0, ga:0, pts:0 };
   });
-  FIXTURES.filter(f => f.status === "FT" || f.status === "LIVE").forEach(f => {
+  fixtures.filter(f => f.status === "FT" || f.status === "LIVE").forEach(f => {
     const ho = getOwner(f.home);
     const ao = getOwner(f.away);
     const hg = f.hg, ag = f.awg;
@@ -279,8 +279,8 @@ function FixtureCard({ f }) {
   );
 }
 
-function LeagueTable() {
-  const table = buildLeagueTable();
+function LeagueTable({ fixtures }) {
+  const table = buildLeagueTable(fixtures);
   const hasData = table.some(r => r.p > 0);
   const medals = ["🥇","🥈","🥉"];
   return (
@@ -382,10 +382,33 @@ export default function App() {
   const [selMember, setSelMember] = useState("All");
   const [selShow, setSelShow] = useState("all");
 
-  const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
-  const playedCount = FIXTURES.filter(f => f.status === "FT" || f.status === "LIVE").length;
+  // Live results are fetched on page load from our Netlify function and merged
+  // over the built-in FIXTURES. If the fetch fails, we just show the built-in data.
+  const [fixtures, setFixtures] = useState(FIXTURES);
+  const [updatedAt, setUpdatedAt] = useState(null);
 
-  const filtered = FIXTURES.filter(f => {
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/.netlify/functions/results")
+      .then(r => r.ok ? r.json() : Promise.reject(r.status))
+      .then(data => {
+        if (cancelled || !data || !Array.isArray(data.results)) return;
+        const idx = {};
+        data.results.forEach(r => { idx[`${r.home}|${r.away}`] = r; });
+        setFixtures(prev => prev.map(f => {
+          const r = idx[`${f.home}|${f.away}`];
+          return r ? { ...f, hg: r.hg, awg: r.awg, status: r.status } : f;
+        }));
+        if (data.fetchedAt) setUpdatedAt(new Date(data.fetchedAt));
+      })
+      .catch(() => { /* keep built-in data on any error */ });
+    return () => { cancelled = true; };
+  }, []);
+
+  const GROUPS = ["A","B","C","D","E","F","G","H","I","J","K","L"];
+  const playedCount = fixtures.filter(f => f.status === "FT" || f.status === "LIVE").length;
+
+  const filtered = fixtures.filter(f => {
     const gOk = selGroup === "All" || f.group === selGroup;
     const mOk = selMember === "All" || getOwner(f.home)===selMember || getOwner(f.away)===selMember;
     const sOk = selShow==="all" || (selShow==="played"&&f.status) || (selShow==="upcoming"&&!f.status);
@@ -429,7 +452,7 @@ export default function App() {
           <span style={{
             background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
             color:"#8ba8d4", borderRadius:20, fontSize:11, fontWeight:600, padding:"3px 12px",
-          }}>🕐 Updated {new Date().toLocaleString("en-GB",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})}</span>
+          }}>🕐 Updated {(updatedAt || new Date()).toLocaleString("en-GB",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})}</span>
         </div>
         <div style={{ display:"flex", justifyContent:"center", gap:2 }}>
           {tabs.map(([id,label]) => (
@@ -497,7 +520,7 @@ export default function App() {
         )}
 
         {/* ── LEAGUE TAB ── */}
-        {view === "league" && <LeagueTable />}
+        {view === "league" && <LeagueTable fixtures={fixtures} />}
 
         {/* ── TEAMS TAB ── */}
         {view === "teams" && (
