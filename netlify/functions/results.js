@@ -57,9 +57,14 @@ export async function handler() {
     }
     const data = await res.json();
     const out = [];
+    const unmatched = new Set();
     for (const m of data.matches || []) {
-      const home = mapName(m.homeTeam?.name || m.homeTeam?.shortName);
-      const away = mapName(m.awayTeam?.name || m.awayTeam?.shortName);
+      const rawHome = m.homeTeam?.name || m.homeTeam?.shortName;
+      const rawAway = m.awayTeam?.name || m.awayTeam?.shortName;
+      const home = mapName(rawHome);
+      const away = mapName(rawAway);
+      if (!home) unmatched.add(rawHome);
+      if (!away) unmatched.add(rawAway);
       if (!home || !away) continue;
       const ft = m.score?.fullTime;
       const live = m.status === "IN_PLAY" || m.status === "PAUSED";
@@ -75,7 +80,12 @@ export async function handler() {
         // small cache so a flurry of family opens doesn't hammer the API
         "Cache-Control": "public, max-age=60",
       },
-      body: JSON.stringify({ results: out, fetchedAt: new Date().toISOString() }),
+      body: JSON.stringify({
+        results: out,
+        fetchedAt: new Date().toISOString(),
+        // TEMPORARY: any API team names we couldn't match, for debugging
+        unmatched: [...unmatched].filter(Boolean),
+      }),
     };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: String(err) }) };
