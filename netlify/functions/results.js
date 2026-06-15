@@ -16,6 +16,7 @@ const NAME_MAP = {
   "Korea Republic": "Korea", "South Korea": "Korea", "Korea DPR": "Korea",
   "Czechia": "Czechia", "Czech Republic": "Czechia",
   "Canada": "Canada", "Bosnia and Herzegovina": "Bosnia & Herzegovina",
+  "Bosnia-Herzegovina": "Bosnia & Herzegovina",
   "Qatar": "Qatar", "Switzerland": "Switzerland", "Brazil": "Brazil",
   "Morocco": "Morocco", "Haiti": "Haiti", "Scotland": "Scotland",
   "United States": "USA", "USA": "USA", "Paraguay": "Paraguay",
@@ -27,6 +28,7 @@ const NAME_MAP = {
   "Egypt": "Egypt", "Iran": "Iran", "IR Iran": "Iran",
   "New Zealand": "New Zealand", "Spain": "Spain",
   "Cape Verde": "Cape Verde", "Cabo Verde": "Cape Verde",
+  "Cape Verde Islands": "Cape Verde",
   "Saudi Arabia": "Saudi Arabia", "Uruguay": "Uruguay",
   "France": "France", "Senegal": "Senegal", "Iraq": "Iraq",
   "Norway": "Norway", "Argentina": "Argentina", "Algeria": "Algeria",
@@ -36,12 +38,38 @@ const NAME_MAP = {
   "England": "England", "Croatia": "Croatia", "Ghana": "Ghana", "Panama": "Panama",
 };
 
+// Reduce any team name to a comparison key: strip accents, lowercase, drop
+// punctuation and common filler words. This makes spelling variants collapse
+// to the same key, so "Bosnia-Herzegovina", "Bosnia and Herzegovina" and
+// "Bosnia & Herzegovina" all match without each needing to be pre-listed.
+const FILLER = /\b(and|the|of|ir|dr|fr|republic|islands?|national|team)\b/g;
+function normKey(s) {
+  return s
+    .normalize("NFD").replace(/[\u0300-\u036f]/g, "")  // strip accents
+    .toLowerCase()
+    .replace(/[^a-z0-9 ]+/g, " ")                       // punctuation -> space
+    .replace(FILLER, " ")                              // drop filler words
+    .replace(/\s+/g, " ")                              // collapse spaces
+    .trim();
+}
+
+// Pre-compute a normalised lookup once: every map key AND every canonical
+// value is indexed, so the API can send either form and still match.
+const NORM_LOOKUP = {};
+for (const [k, v] of Object.entries(NAME_MAP)) {
+  NORM_LOOKUP[normKey(k)] = v;
+  NORM_LOOKUP[normKey(v)] = v;
+}
+
+// Anything genuinely unmatched is collected here so it surfaces in logs.
+const unmatchedSeen = new Set();
+
 function mapName(n) {
   if (!n) return null;
-  if (NAME_MAP[n]) return NAME_MAP[n];
-  const norm = s => s.normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
-  const t = norm(n);
-  for (const [k, v] of Object.entries(NAME_MAP)) if (norm(k) === t) return v;
+  if (NAME_MAP[n]) return NAME_MAP[n];          // exact hit (fast path)
+  const key = normKey(n);
+  if (NORM_LOOKUP[key]) return NORM_LOOKUP[key]; // normalised hit
+  unmatchedSeen.add(n);                          // log-only; never silently lost
   return null;
 }
 
@@ -57,14 +85,9 @@ export async function handler() {
     }
     const data = await res.json();
     const out = [];
-    const unmatched = new Set();
     for (const m of data.matches || []) {
-      const rawHome = m.homeTeam?.name || m.homeTeam?.shortName;
-      const rawAway = m.awayTeam?.name || m.awayTeam?.shortName;
-      const home = mapName(rawHome);
-      const away = mapName(rawAway);
-      if (!home) unmatched.add(rawHome);
-      if (!away) unmatched.add(rawAway);
+      const home = mapName(m.homeTeam?.name || m.homeTeam?.shortName);
+      const away = mapName(m.awayTeam?.name || m.awayTeam?.shortName);
       if (!home || !away) continue;
       const ft = m.score?.fullTime;
       const live = m.status === "IN_PLAY" || m.status === "PAUSED";
@@ -73,6 +96,10 @@ export async function handler() {
         out.push({ home, away, hg: ft.home, awg: ft.away, status: done ? "FT" : "LIVE" });
       }
     }
+    if (unmatchedSeen.size) {
+      console.warn("Unmatched team names (add to NAME_MAP if a result is missing):",
+        [...unmatchedSeen].join(", "));
+    }
     return {
       statusCode: 200,
       headers: {
@@ -80,12 +107,7 @@ export async function handler() {
         // small cache so a flurry of family opens doesn't hammer the API
         "Cache-Control": "public, max-age=60",
       },
-      body: JSON.stringify({
-        results: out,
-        fetchedAt: new Date().toISOString(),
-        // TEMPORARY: any API team names we couldn't match, for debugging
-        unmatched: [...unmatched].filter(Boolean),
-      }),
+      body: JSON.stringify({ results: out, fetchedAt: new Date().toISOString() }),
     };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: String(err) }) };
