@@ -73,10 +73,10 @@ const FIXTURES = [
   {date:"Sat 13 Jun",group:"C",home:"Brazil",away:"Morocco",time:"11pm",hg:1, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"C",home:"Haiti",away:"Scotland",time:"2am",hg:0, awg:1, status:"FT"},
   {date:"Sun 14 Jun",group:"D",home:"Australia",away:"Turkey",time:"5pm",hg:2, awg:0, status:"FT"},
-  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:7, awg:1, status:"FT"},
-  {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:2, awg:2, status:"FT"},
-  {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:1, awg:0, status:"FT"},
-  {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:5, awg:1, status:"FT"},
+  {date:"Sun 14 Jun",group:"E",home:"Germany",away:"Curacao",time:"6pm",hg:null,awg:null,status:null},
+  {date:"Sun 14 Jun",group:"F",home:"Netherlands",away:"Japan",time:"9pm",hg:null,awg:null,status:null},
+  {date:"Mon 15 Jun",group:"E",home:"Ivory Coast",away:"Ecuador",time:"12am",hg:null,awg:null,status:null},
+  {date:"Mon 15 Jun",group:"F",home:"Sweden",away:"Tunisia",time:"3am",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"H",home:"Spain",away:"Cape Verde",time:"5pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"G",home:"Belgium",away:"Egypt",time:"8pm",hg:null,awg:null,status:null},
   {date:"Mon 15 Jun",group:"H",home:"Saudi Arabia",away:"Uruguay",time:"11pm",hg:null,awg:null,status:null},
@@ -241,21 +241,14 @@ function ScoreBox({ f }) {
 
 function FixtureCard({ f }) {
   const ho = getOwner(f.home), ao = getOwner(f.away);
-  const clash = ho && ao && ho !== ao;
   const played = f.status === "FT" || f.status === "LIVE";
   return (
     <div style={{
-      background: clash ? "linear-gradient(135deg,#fffbea,#fff)" : played ? "#f7faff" : "#fff",
-      border: clash ? "2px solid #f39c12" : played ? "1px solid #c7d8f0" : "1px solid #e8ecf0",
+      background: played ? "#f7faff" : "#fff",
+      border: played ? "1px solid #c7d8f0" : "1px solid #e8ecf0",
       borderRadius:10, padding:"10px 12px", marginBottom:8, position:"relative",
-      boxShadow: clash ? "0 2px 10px rgba(243,156,18,0.15)" : "0 1px 4px rgba(0,0,0,0.05)",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
     }}>
-      {clash && (
-        <div style={{
-          position:"absolute", top:-1, right:10, background:"#f39c12", color:"#fff",
-          fontSize:9, fontWeight:800, padding:"2px 8px", borderRadius:"0 0 6px 6px", letterSpacing:"0.06em",
-        }}>FAMILY CLASH ⚡</div>
-      )}
       <div style={{ display:"flex", alignItems:"center", gap:4 }}>
         {/* Home side */}
         <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:4 }}>
@@ -436,7 +429,7 @@ export default function App() {
           <span style={{
             background:"rgba(255,255,255,0.08)", border:"1px solid rgba(255,255,255,0.15)",
             color:"#8ba8d4", borderRadius:20, fontSize:11, fontWeight:600, padding:"3px 12px",
-          }}>🕐 Updated {new Date("2026-06-14").toLocaleDateString("en-GB",{day:"numeric",month:"long",year:"numeric"})}</span>
+          }}>🕐 Updated {new Date().toLocaleString("en-GB",{day:"numeric",month:"long",hour:"2-digit",minute:"2-digit",timeZone:"Europe/London"})}</span>
         </div>
         <div style={{ display:"flex", justifyContent:"center", gap:2 }}>
           {tabs.map(([id,label]) => (
@@ -473,9 +466,6 @@ export default function App() {
                   </select>
                 </div>
               ))}
-              <div style={{ marginLeft:"auto", paddingBottom:2 }}>
-                <span style={{ background:"#fff3cd", border:"1px solid #f39c12", borderRadius:6, padding:"5px 10px", fontSize:11, fontWeight:700, color:"#b7791f" }}>⚡ Family Clash</span>
-              </div>
             </div>
 
             {Object.keys(byDate).length === 0 && (
