@@ -84,18 +84,63 @@ export async function handler() {
       return { statusCode: res.status, body: JSON.stringify({ error: res.statusText }) };
     }
     const data = await res.json();
-    const out = [];
+    const out = [];        // group-stage results (keyed by home|away in the app)
+    const knockout = [];   // knockout matches (keyed by stage + order in the app)
+
+    // Map football-data.org stage codes to our round ids
+    const STAGE = {
+      LAST_32: "R32", ROUND_OF_32: "R32",
+      LAST_16: "R16", ROUND_OF_16: "R16",
+      QUARTER_FINALS: "QF", QUARTER_FINAL: "QF",
+      SEMI_FINALS: "SF", SEMI_FINAL: "SF",
+      THIRD_PLACE: "3P", THIRD_PLACE_PLAYOFF: "3P",
+      FINAL: "F",
+    };
+
+    // Convert a UTC kickoff to a UK day label + 12h time (matches app format)
+    const toUK = iso => {
+      if (!iso) return { date: null, time: null };
+      const d = new Date(iso);
+      const date = d.toLocaleDateString("en-GB", { weekday:"short", day:"numeric", month:"short", timeZone:"Europe/London" });
+      let time = d.toLocaleTimeString("en-GB", { hour:"numeric", minute:"2-digit", hour12:true, timeZone:"Europe/London" })
+        .replace(":00","").replace(/\s/g,"").toLowerCase();
+      return { date, time };
+    };
+
     for (const m of data.matches || []) {
       const home = mapName(m.homeTeam?.name || m.homeTeam?.shortName);
       const away = mapName(m.awayTeam?.name || m.awayTeam?.shortName);
-      if (!home || !away) continue;
       const ft = m.score?.fullTime;
       const live = m.status === "IN_PLAY" || m.status === "PAUSED";
       const done = m.status === "FINISHED";
+      const stage = STAGE[m.stage];
+
+      if (stage) {
+        // Knockout match: include it as soon as it exists, even unplayed,
+        // so team names appear the moment the round is drawn.
+        const { date, time } = toUK(m.utcDate);
+        knockout.push({
+          stage,
+          home: home || null,
+          away: away || null,
+          hg: (done || live) && ft ? ft.home : null,
+          awg: (done || live) && ft ? ft.away : null,
+          status: done ? "FT" : live ? "LIVE" : null,
+          date, time,
+          utcDate: m.utcDate || null,
+        });
+        continue;
+      }
+
+      // Group stage: only emit finished/live with a score (keyed by teams)
+      if (!home || !away) continue;
       if ((done || live) && ft && ft.home != null && ft.away != null) {
         out.push({ home, away, hg: ft.home, awg: ft.away, status: done ? "FT" : "LIVE" });
       }
     }
+
+    // Order knockout matches by kickoff so the app can map them to slots in order
+    knockout.sort((a, b) => (a.utcDate || "").localeCompare(b.utcDate || ""));
     if (unmatchedSeen.size) {
       console.warn("Unmatched team names (add to NAME_MAP if a result is missing):",
         [...unmatchedSeen].join(", "));
@@ -107,7 +152,7 @@ export async function handler() {
         // small cache so a flurry of family opens doesn't hammer the API
         "Cache-Control": "public, max-age=60",
       },
-      body: JSON.stringify({ results: out, fetchedAt: new Date().toISOString() }),
+      body: JSON.stringify({ results: out, knockout, fetchedAt: new Date().toISOString() }),
     };
   } catch (err) {
     return { statusCode: 500, body: JSON.stringify({ error: String(err) }) };
