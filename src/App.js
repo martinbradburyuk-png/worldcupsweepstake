@@ -139,6 +139,55 @@ const FIXTURES = [
   {date:"Sun 28 Jun",group:"J",home:"Jordan",away:"Argentina",time:"3am",hg:null,awg:null,status:null},
 ];
 
+// ── Knockout stage ────────────────────────────────────────────────────────────
+// 2026 is the first 48-team World Cup, so there's a Round of 32 before the Last 16.
+// Teams are filled in by the API once each round is drawn; until then home/away are
+// null and the card shows a placeholder. Dates are correct (UK); knockout kick-off
+// times are best-estimate slots until FIFA confirms them and the API supplies exact times.
+const ROUNDS = [
+  { id:"R32", label:"Last 32",  range:"28 Jun – 3 Jul" },
+  { id:"R16", label:"Last 16",  range:"4 – 7 Jul" },
+  { id:"QF",  label:"Quarters", range:"9 – 11 Jul" },
+  { id:"SF",  label:"Semis",    range:"14 – 15 Jul" },
+  { id:"3P",  label:"3rd Place",range:"18 Jul" },
+  { id:"F",   label:"Final",    range:"19 Jul" },
+];
+
+const KNOCKOUTS = [
+  {round:"R32",match:"M73",date:"Sun 28 Jun",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M88",date:"Mon 29 Jun",time:"1am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M74",date:"Sun 28 Jun",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M75",date:"Mon 29 Jun",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M76",date:"Mon 29 Jun",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M77",date:"Tue 30 Jun",time:"1am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M78",date:"Tue 30 Jun",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M79",date:"Wed 1 Jul",time:"12am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M80",date:"Wed 1 Jul",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M81",date:"Thu 2 Jul",time:"12am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M82",date:"Thu 2 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M83",date:"Thu 2 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M84",date:"Fri 3 Jul",time:"1am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M85",date:"Fri 3 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M86",date:"Fri 3 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R32",match:"M87",date:"Sat 4 Jul",time:"1am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M89",date:"Sat 4 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M90",date:"Sat 4 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M91",date:"Sun 5 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M92",date:"Sun 5 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M93",date:"Mon 6 Jul",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M94",date:"Tue 7 Jul",time:"12am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M95",date:"Tue 7 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"R16",match:"M96",date:"Tue 7 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"QF",match:"M97",date:"Thu 9 Jul",time:"9pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"QF",match:"M98",date:"Fri 10 Jul",time:"5pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"QF",match:"M99",date:"Sat 11 Jul",time:"10pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"QF",match:"M100",date:"Sun 12 Jul",time:"2am",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"SF",match:"M101",date:"Tue 14 Jul",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"SF",match:"M102",date:"Wed 15 Jul",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"3P",match:"M103",date:"Sat 18 Jul",time:"10pm",home:null,away:null,hg:null,awg:null,status:null},
+  {round:"F",match:"M104",date:"Sun 19 Jul",time:"8pm",home:null,away:null,hg:null,awg:null,status:null},
+];
+
 // ── League table calculation ──────────────────────────────────────────────────
 function buildLeagueTable(fixtures) {
   const stats = {};
@@ -239,8 +288,39 @@ function ScoreBox({ f }) {
   );
 }
 
+function TeamSide({ team, side }) {
+  // side: "home" (right-aligned) or "away" (left-aligned)
+  const owner = team ? getOwner(team) : null;
+  const isHome = side === "home";
+  const placeholder = !team;
+  const nameEl = (
+    <span style={{
+      fontWeight:700, fontSize:12,
+      color: placeholder ? "#94a3b8" : "#1a2035",
+      fontStyle: placeholder ? "italic" : "normal",
+      textAlign: isHome ? "right" : "left", wordBreak:"break-word",
+    }}>{team || "To be decided"}</span>
+  );
+  const flagEl = <span style={{ fontSize:16, flexShrink:0 }}>{team ? (FLAGS[team]||"⚽") : "🏳️"}</span>;
+  return (
+    <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center",
+      justifyContent: isHome ? "flex-end" : "flex-start", gap:4 }}>
+      {!isHome && <div style={{ width:3, height:32, borderRadius:2, background:owner?COLORS[owner]:"#ddd", flexShrink:0 }} />}
+      {!isHome && flagEl}
+      <div style={{ minWidth:0, display:"flex", flexDirection:"column",
+        alignItems: isHome ? "flex-end" : "flex-start", gap:2 }}>
+        <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+          {isHome && nameEl}{isHome && flagEl}
+          {!isHome && nameEl}
+        </div>
+        {owner && <OwnerPill team={team} />}
+      </div>
+      {isHome && <div style={{ width:3, height:32, borderRadius:2, background:owner?COLORS[owner]:"#ddd", flexShrink:0 }} />}
+    </div>
+  );
+}
+
 function FixtureCard({ f }) {
-  const ho = getOwner(f.home), ao = getOwner(f.away);
   const played = f.status === "FT" || f.status === "LIVE";
   return (
     <div style={{
@@ -250,30 +330,9 @@ function FixtureCard({ f }) {
       boxShadow: "0 1px 4px rgba(0,0,0,0.05)",
     }}>
       <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-        {/* Home side */}
-        <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-end", gap:4 }}>
-          <div style={{ minWidth:0, display:"flex", flexDirection:"column", alignItems:"flex-end", gap:2 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-              <span style={{ fontWeight:700, fontSize:12, color:"#1a2035", textAlign:"right", wordBreak:"break-word" }}>{f.home}</span>
-              <span style={{ fontSize:16, flexShrink:0 }}>{FLAGS[f.home]||"⚽"}</span>
-            </div>
-            {ho && <OwnerPill team={f.home} />}
-          </div>
-          <div style={{ width:3, height:32, borderRadius:2, background:ho?COLORS[ho]:"#ddd", flexShrink:0 }} />
-        </div>
-        {/* Score */}
+        <TeamSide team={f.home} side="home" />
         <div style={{ flexShrink:0 }}><ScoreBox f={f} /></div>
-        {/* Away side */}
-        <div style={{ flex:1, minWidth:0, display:"flex", alignItems:"center", justifyContent:"flex-start", gap:4 }}>
-          <div style={{ width:3, height:32, borderRadius:2, background:ao?COLORS[ao]:"#ddd", flexShrink:0 }} />
-          <div style={{ minWidth:0, display:"flex", flexDirection:"column", alignItems:"flex-start", gap:2 }}>
-            <div style={{ display:"flex", alignItems:"center", gap:4 }}>
-              <span style={{ fontSize:16, flexShrink:0 }}>{FLAGS[f.away]||"⚽"}</span>
-              <span style={{ fontWeight:700, fontSize:12, color:"#1a2035", wordBreak:"break-word" }}>{f.away}</span>
-            </div>
-            {ao && <OwnerPill team={f.away} />}
-          </div>
-        </div>
+        <TeamSide team={f.away} side="away" />
       </div>
     </div>
   );
@@ -283,14 +342,24 @@ function LeagueTable({ fixtures }) {
   const table = buildLeagueTable(fixtures);
   const hasData = table.some(r => r.p > 0);
   const medals = ["🥇","🥈","🥉"];
+  const groupGames = fixtures.length;             // 72 group matches
+  const groupDone = fixtures.filter(f => f.status === "FT").length;
+  const isFinal = groupGames > 0 && groupDone === groupGames;
   return (
     <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
       <div style={{
-        background:"#1a3a6e", borderRadius:12, padding:"14px 16px", marginBottom:16,
+        background: isFinal ? "linear-gradient(135deg,#1a3a6e,#16a34a)" : "#1a3a6e",
+        borderRadius:12, padding:"14px 16px", marginBottom:16,
         border:"1px solid rgba(255,255,255,0.1)",
       }}>
-        <div style={{ color:"#fff", fontWeight:900, fontSize:15, marginBottom:2 }}>🏅 Family League Table</div>
-        <div style={{ color:"#8ba8d4", fontSize:12 }}>Points from all group stage matches · 3 pts for a win · 1 pt for a draw</div>
+        <div style={{ color:"#fff", fontWeight:900, fontSize:15, marginBottom:2 }}>
+          🏅 Family League Table{isFinal && " · FINAL"}
+        </div>
+        <div style={{ color: isFinal ? "#d1fae5" : "#8ba8d4", fontSize:12 }}>
+          {isFinal
+            ? `✓ All ${groupGames} group games played — final sweepstake standings`
+            : `Group stage points · 3 for a win, 1 for a draw · ${groupDone}/${groupGames} games played`}
+        </div>
       </div>
 
       {!hasData && (
@@ -377,14 +446,16 @@ function LeagueTable({ fixtures }) {
 
 // ── Main App ──────────────────────────────────────────────────────────────────
 export default function App() {
-  const [view, setView] = useState("fixtures");
+  const [view, setView] = useState("groups");
   const [selGroup, setSelGroup] = useState("All");
   const [selMember, setSelMember] = useState("All");
   const [selShow, setSelShow] = useState("all");
+  const [selRound, setSelRound] = useState("R32");
 
   // Live results are fetched on page load from our Netlify function and merged
   // over the built-in FIXTURES. If the fetch fails, we just show the built-in data.
   const [fixtures, setFixtures] = useState(FIXTURES);
+  const [knockouts, setKnockouts] = useState(KNOCKOUTS);
   const [updatedAt, setUpdatedAt] = useState(null);
 
   useEffect(() => {
@@ -399,6 +470,30 @@ export default function App() {
           const r = idx[`${f.home}|${f.away}`];
           return r ? { ...f, hg: r.hg, awg: r.awg, status: r.status } : f;
         }));
+        // Knockout matches: the API returns them ordered by kickoff, grouped by
+        // stage. We replace our placeholders for each round in that same order,
+        // so team names, dates and times populate the moment a round is drawn.
+        if (Array.isArray(data.knockout)) {
+          const byStage = {};
+          data.knockout.forEach(k => { (byStage[k.stage] = byStage[k.stage]||[]).push(k); });
+          setKnockouts(prev => {
+            const counters = {};
+            return prev.map(slot => {
+              const list = byStage[slot.round];
+              if (!list) return slot;
+              const i = counters[slot.round] || 0;
+              counters[slot.round] = i + 1;
+              const api = list[i];
+              if (!api) return slot;
+              return { ...slot,
+                home: api.home ?? slot.home,
+                away: api.away ?? slot.away,
+                hg: api.hg, awg: api.awg, status: api.status,
+                date: api.date || slot.date,
+                time: api.time || slot.time };
+            });
+          });
+        }
         if (data.fetchedAt) setUpdatedAt(new Date(data.fetchedAt));
       })
       .catch(() => { /* keep built-in data on any error */ });
@@ -426,7 +521,7 @@ export default function App() {
   };
   const sortedDates = Object.keys(byDate).sort((a,b) => dateKey(a) - dateKey(b));
 
-  const tabs = [["fixtures","📋 Fixtures"],["league","🏅 League"],["teams","👥 Teams"]];
+  const tabs = [["groups","📋 Groups"],["knockouts","🏆 Knockouts"],["league","🏅 League"],["teams","👥 Teams"]];
 
   return (
     <div style={{ minHeight:"100vh", background:"#0a1628", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
@@ -460,8 +555,8 @@ export default function App() {
               background: view===id ? "#fff" : "transparent",
               color: view===id ? "#0a1628" : "rgba(255,255,255,0.6)",
               border:"none", borderRadius:"8px 8px 0 0",
-              padding:"9px 18px", fontWeight:700, fontSize:12, cursor:"pointer",
-              transition:"all 0.15s",
+              padding:"9px 12px", fontWeight:700, fontSize:12, cursor:"pointer",
+              transition:"all 0.15s", whiteSpace:"nowrap",
             }}>{label}</button>
           ))}
         </div>
@@ -469,8 +564,8 @@ export default function App() {
 
       <div style={{ background:"#f5f7fa", minHeight:"calc(100vh - 160px)" }}>
 
-        {/* ── FIXTURES TAB ── */}
-        {view === "fixtures" && (
+        {/* ── GROUP STAGE TAB ── */}
+        {view === "groups" && (
           <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
             <div style={{ display:"flex", gap:8, flexWrap:"wrap", marginBottom:16, alignItems:"flex-end" }}>
               {[
@@ -518,6 +613,64 @@ export default function App() {
             </div>
           </div>
         )}
+
+        {/* ── KNOCKOUTS TAB ── */}
+        {view === "knockouts" && (() => {
+          const roundMatches = knockouts.filter(k => k.round === selRound);
+          const roundMeta = ROUNDS.find(r => r.id === selRound);
+          const koByDate = {};
+          roundMatches.forEach(k => { (koByDate[k.date] = koByDate[k.date]||[]).push(k); });
+          const koDates = Object.keys(koByDate).sort((a,b) => dateKey(a) - dateKey(b));
+          const anyTeams = roundMatches.some(k => k.home || k.away);
+          const roundCount = id => knockouts.filter(k => k.round === id).length;
+          return (
+            <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
+              {/* round sub-nav */}
+              <div style={{ display:"flex", gap:6, overflowX:"auto", paddingBottom:10, marginBottom:6, WebkitOverflowScrolling:"touch" }}>
+                {ROUNDS.map(r => (
+                  <button key={r.id} onClick={() => setSelRound(r.id)} style={{
+                    flex:"0 0 auto",
+                    background: selRound===r.id ? "#1a3a6e" : "#fff",
+                    color: selRound===r.id ? "#fff" : "#64748b",
+                    border: selRound===r.id ? "1px solid #1a3a6e" : "1px solid #dce3ea",
+                    borderRadius:20, padding:"7px 14px", fontSize:12, fontWeight:700,
+                    cursor:"pointer", whiteSpace:"nowrap",
+                  }}>
+                    {r.label}{roundCount(r.id) > 1 && <span style={{ opacity:0.6, fontWeight:600, marginLeft:4 }}>{roundCount(r.id)}</span>}
+                  </button>
+                ))}
+              </div>
+
+              {koDates.map(date => {
+                const ms = koByDate[date];
+                return (
+                  <div key={date} style={{ marginBottom:20 }}>
+                    <div style={{ display:"flex", alignItems:"center", gap:10, marginBottom:10 }}>
+                      <div style={{ background:"#1a3a6e", color:"#fff", borderRadius:7, padding:"5px 12px", fontSize:12, fontWeight:800, letterSpacing:"0.04em", whiteSpace:"nowrap" }}>{date}</div>
+                      <div style={{ flex:1, height:1, background:"#dce3ea" }} />
+                      <span style={{ fontSize:11, color:"#a0aec0", whiteSpace:"nowrap" }}>{ms.length} match{ms.length!==1?"es":""}</span>
+                    </div>
+                    {ms.map((k,i) => <FixtureCard key={i} f={k} />)}
+                  </div>
+                );
+              })}
+
+              {!anyTeams && (
+                <div style={{
+                  textAlign:"center", color:"#94a3b8", fontSize:12, padding:"20px 16px",
+                  background:"#fff", borderRadius:12, border:"1px dashed #cbd5e0", marginTop:4,
+                }}>
+                  🔒 Teams appear here automatically once the earlier rounds are played.
+                  Dates &amp; kick-off times are already set.
+                </div>
+              )}
+
+              <div style={{ textAlign:"center", padding:"16px 0 20px", color:"#a0aec0", fontSize:11 }}>
+                {roundMeta?.label} · {roundMeta?.range} · times BST (estimated until confirmed)
+              </div>
+            </div>
+          );
+        })()}
 
         {/* ── LEAGUE TAB ── */}
         {view === "league" && <LeagueTable fixtures={fixtures} />}
