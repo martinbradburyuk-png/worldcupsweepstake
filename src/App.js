@@ -61,6 +61,23 @@ const FLAGS = {
   "England":"🏴󠁧󠁢󠁥󠁮󠁧󠁿","Croatia":"🇭🇷","Ghana":"🇬🇭","Panama":"🇵🇦",
 };
 
+// Convert a UK (BST) time string like "8pm", "11pm", "1:30am", "12am" to
+// California time (PT). California is 8 hours behind the UK (BST−8).
+function toCalifornia(bst) {
+  if (!bst) return null;
+  const m = bst.trim().toLowerCase().match(/^(\d{1,2})(?::(\d{2}))?(am|pm)$/);
+  if (!m) return null;
+  let h = parseInt(m[1], 10);
+  const min = m[2] ? parseInt(m[2], 10) : 0;
+  const mer = m[3];
+  if (h === 12) h = 0;               // 12am -> 0, 12pm -> 0 then +12 below
+  if (mer === "pm") h += 12;         // to 24h
+  let pt = (h - 8 + 24) % 24;        // shift back 8 hours
+  const ptMer = pt >= 12 ? "pm" : "am";
+  let ph = pt % 12; if (ph === 0) ph = 12;
+  return min ? `${ph}:${String(min).padStart(2,"0")}${ptMer}` : `${ph}${ptMer}`;
+}
+
 // status: "FT" = played, "LIVE" = in progress, null = upcoming
 // Date = the UK calendar day the match is watched on (late US kickoffs roll into the early hours). All times BST.
 const FIXTURES = [
@@ -279,11 +296,14 @@ function ScoreBox({ f }) {
   return (
     <div style={{
       display:"flex", flexDirection:"column", alignItems:"center",
-      minWidth:62, background:"#eef2f7", borderRadius:8, padding:"4px 8px",
+      minWidth:68, background:"#eef2f7", borderRadius:8, padding:"4px 8px",
     }}>
       <span style={{ fontSize:9, color:"#7a8599", fontWeight:700 }}>{f.date.slice(4,10)}</span>
-      <span style={{ fontSize:14, fontWeight:900, color:"#1a2035" }}>VS</span>
-      <span style={{ fontSize:9, color:"#7a8599", fontWeight:600 }}>{f.time} BST</span>
+      <span style={{ fontSize:14, fontWeight:900, color:"#1a2035", lineHeight:1.1 }}>VS</span>
+      <span style={{ fontSize:9, color:"#7a8599", fontWeight:700 }}>{f.time} <span style={{color:"#a0aec0"}}>UK</span></span>
+      {toCalifornia(f.time) && (
+        <span style={{ fontSize:9, color:"#c0392b", fontWeight:700 }}>{toCalifornia(f.time)} <span style={{color:"#d99",fontWeight:600}}>CA</span></span>
+      )}
     </div>
   );
 }
@@ -462,6 +482,37 @@ export default function App() {
   const [selShow, setSelShow] = useState("all");
   const [selRound, setSelRound] = useState("R32");
 
+  // ── Date-aware behaviour ────────────────────────────────────────────────────
+  // Group stage ends Sat 27 Jun 2026. The family league table is a group-stage
+  // competition, so we stop showing it once the groups are done (from 28 Jun).
+  // The knockouts run from 28 Jun; from 29 Jun we default the app to the
+  // current knockout round so it opens on what's live.
+  const NOW = new Date();
+  const showLeague = NOW < new Date("2026-06-28T00:00:00Z");
+
+  // Which knockout round is "current" based on today's date (UK).
+  const currentRound = (() => {
+    const d = NOW;
+    if (d >= new Date("2026-07-19T00:00:00Z")) return "F";
+    if (d >= new Date("2026-07-18T00:00:00Z")) return "3P";
+    if (d >= new Date("2026-07-14T00:00:00Z")) return "SF";
+    if (d >= new Date("2026-07-09T00:00:00Z")) return "QF";
+    if (d >= new Date("2026-07-04T00:00:00Z")) return "R16";
+    if (d >= new Date("2026-06-28T00:00:00Z")) return "R32";
+    return null; // group stage still running
+  })();
+
+  // From Mon 29 Jun, open the app on the Knockouts tab at the current round.
+  useEffect(() => {
+    const knockoutsDefaultFrom = new Date("2026-06-29T00:00:00Z");
+    if (NOW >= knockoutsDefaultFrom && currentRound) {
+      setView("knockouts");
+      setSelRound(currentRound);
+    }
+    // run once on mount
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   // Live results are fetched on page load from our Netlify function and merged
   // over the built-in FIXTURES. If the fetch fails, we just show the built-in data.
   const [fixtures, setFixtures] = useState(FIXTURES);
@@ -531,7 +582,19 @@ export default function App() {
   };
   const sortedDates = Object.keys(byDate).sort((a,b) => dateKey(a) - dateKey(b));
 
-  const tabs = [["groups","📋 Groups"],["knockouts","🏆 Knockouts"],["league","🏅 League"],["teams","👥 Teams"]];
+  // If the league tab is gone (groups closed) but it's still the active view,
+  // fall back to a sensible default.
+  useEffect(() => {
+    if (!showLeague && view === "league") setView(currentRound ? "knockouts" : "groups");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showLeague, view]);
+
+  const tabs = [
+    ["groups","📋 Groups"],
+    ["knockouts","🏆 Knockouts"],
+    ...(showLeague ? [["league","🏅 League"]] : []),
+    ["teams","👥 Teams"],
+  ];
 
   return (
     <div style={{ minHeight:"100vh", background:"#0a1628", fontFamily:"'Segoe UI',system-ui,sans-serif" }}>
@@ -683,7 +746,7 @@ export default function App() {
         })()}
 
         {/* ── LEAGUE TAB ── */}
-        {view === "league" && <LeagueTable fixtures={fixtures} />}
+        {view === "league" && showLeague && <LeagueTable fixtures={fixtures} />}
 
         {/* ── TEAMS TAB ── */}
         {view === "teams" && (
