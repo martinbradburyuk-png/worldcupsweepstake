@@ -205,6 +205,38 @@ const KNOCKOUTS = [
   {round:"F",match:"M104",date:"Sun 19 Jul",time:"8pm",venue:"MetLife Stadium, New York/NJ",home:null,away:null,hg:null,awg:null,status:null},
 ];
 
+// ── Team survival (who's still in the competition) ────────────────────────────
+// A team is OUT if it lost a knockout match, or if the knockouts have begun and
+// the team never appears in any knockout fixture (didn't qualify from groups).
+// Otherwise it's IN (during the group stage, everyone counts as in until then).
+function computeSurvival(knockouts) {
+  const eliminated = new Set();
+  const inKnockouts = new Set();      // every team that reached the knockouts
+  let knockoutsBegun = false;
+
+  knockouts.forEach(k => {
+    if (k.home) inKnockouts.add(k.home);
+    if (k.away) inKnockouts.add(k.away);
+    if (k.home || k.away) knockoutsBegun = true;
+    // a finished knockout match eliminates the loser
+    if (k.status === "FT" && k.home && k.away && k.hg != null && k.awg != null) {
+      if (k.hg > k.awg) eliminated.add(k.away);
+      else if (k.awg > k.hg) eliminated.add(k.home);
+      // (draws in knockouts go to extra time / pens; the API reports the
+      //  advancing side via the next round, so a level FT score leaves both
+      //  "in" here until the winner appears in the following round)
+    }
+  });
+
+  // Once the bracket is populated, any team not in it didn't qualify.
+  function isOut(team) {
+    if (eliminated.has(team)) return true;
+    if (knockoutsBegun && !inKnockouts.has(team)) return true;
+    return false;
+  }
+  return { isOut, knockoutsBegun };
+}
+
 // ── League table calculation ──────────────────────────────────────────────────
 function buildLeagueTable(fixtures) {
   const stats = {};
@@ -747,29 +779,60 @@ export default function App() {
         {view === "league" && showLeague && <LeagueTable fixtures={fixtures} />}
 
         {/* ── TEAMS TAB ── */}
-        {view === "teams" && (
-          <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
-            <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))", gap:12 }}>
-              {Object.entries(FAMILY).map(([name, teams]) => (
-                <div key={name} style={{ background:"#fff", borderRadius:10, border:"1px solid #e8ecf0", overflow:"hidden", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
-                  <div style={{ background:COLORS[name], padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
-                    <div style={{ width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:13, color:"#fff" }}>{name[0]}</div>
-                    <span style={{ color:"#fff", fontWeight:800, fontSize:14 }}>{name}</span>
-                    <span style={{ marginLeft:"auto", color:"rgba(255,255,255,0.7)", fontSize:12 }}>{teams.length} teams</span>
-                  </div>
-                  <div style={{ padding:"10px 14px" }}>
-                    {teams.map(t => (
-                      <div key={t} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:"1px solid #f0f4f8" }}>
-                        <span style={{ fontSize:18 }}>{FLAGS[t]||"⚽"}</span>
-                        <span style={{ fontSize:13, fontWeight:600, color:"#1a2035" }}>{t}</span>
-                      </div>
-                    ))}
-                  </div>
+        {view === "teams" && (() => {
+          const { isOut, knockoutsBegun } = computeSurvival(knockouts);
+          // Build per-member survival data and sort by teams remaining (desc),
+          // then by name for a stable order.
+          const members = Object.entries(FAMILY).map(([name, teams]) => {
+            const status = teams.map(t => ({ team: t, out: isOut(t) }));
+            const remaining = status.filter(s => !s.out).length;
+            return { name, teams, status, remaining };
+          }).sort((a, b) => b.remaining - a.remaining || a.name.localeCompare(b.name));
+
+          return (
+            <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
+              {knockoutsBegun && (
+                <div style={{
+                  background:"#1a3a6e", borderRadius:12, padding:"12px 16px", marginBottom:16,
+                  border:"1px solid rgba(255,255,255,0.1)",
+                }}>
+                  <div style={{ color:"#fff", fontWeight:900, fontSize:15, marginBottom:2 }}>🏆 Who's Still Standing</div>
+                  <div style={{ color:"#8ba8d4", fontSize:12 }}>Ranked by teams still in the competition · updates as games finish</div>
                 </div>
-              ))}
+              )}
+              <div style={{ display:"grid", gridTemplateColumns:"repeat(auto-fill,minmax(250px,1fr))", gap:12 }}>
+                {members.map(({ name, status, teams, remaining }, i) => (
+                  <div key={name} style={{ background:"#fff", borderRadius:10, border:"1px solid #e8ecf0", overflow:"hidden", boxShadow:"0 1px 6px rgba(0,0,0,0.06)" }}>
+                    <div style={{ background:COLORS[name], padding:"8px 14px", display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ width:30, height:30, borderRadius:"50%", background:"rgba(255,255,255,0.25)", display:"flex", alignItems:"center", justifyContent:"center", fontWeight:900, fontSize:13, color:"#fff" }}>{name[0]}</div>
+                      <span style={{ color:"#fff", fontWeight:800, fontSize:14 }}>{name}</span>
+                      <span style={{
+                        marginLeft:"auto", color:"#fff",
+                        background: remaining>0 ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.25)",
+                        borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:800,
+                      }}>
+                        {knockoutsBegun
+                          ? (remaining>0 ? `${remaining} still in` : "knocked out")
+                          : `${teams.length} teams`}
+                      </span>
+                    </div>
+                    <div style={{ padding:"10px 14px" }}>
+                      {status.map(({ team, out }) => (
+                        <div key={team} style={{ display:"flex", alignItems:"center", gap:8, padding:"5px 0", borderBottom:"1px solid #f0f4f8", opacity: out ? 0.45 : 1 }}>
+                          <span style={{ fontSize:18, filter: out ? "grayscale(100%)" : "none" }}>{FLAGS[team]||"⚽"}</span>
+                          <span style={{ fontSize:13, fontWeight:600, color:"#1a2035", textDecoration: out ? "line-through" : "none" }}>{team}</span>
+                          {out
+                            ? <span style={{ marginLeft:"auto", fontSize:10, fontWeight:800, color:"#dc2626", letterSpacing:"0.04em" }}>OUT</span>
+                            : knockoutsBegun && <span style={{ marginLeft:"auto", fontSize:10, fontWeight:800, color:"#16a34a", letterSpacing:"0.04em" }}>IN</span>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-          </div>
-        )}
+          );
+        })()}
 
       </div>
     </div>
