@@ -510,7 +510,6 @@ export default function App() {
       setSelRound(currentRound);
     }
     // run once on mount
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Live results are fetched on page load from our Netlify function and merged
@@ -586,7 +585,6 @@ export default function App() {
   // fall back to a sensible default.
   useEffect(() => {
     if (!showLeague && view === "league") setView(currentRound ? "knockouts" : "groups");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [showLeague, view]);
 
   const tabs = [
