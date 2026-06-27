@@ -206,35 +206,42 @@ const KNOCKOUTS = [
 ];
 
 // ── Team survival (who's still in the competition) ────────────────────────────
-// A team is OUT if it lost a knockout match, or if the knockouts have begun and
-// the team never appears in any knockout fixture (didn't qualify from groups).
-// Otherwise it's IN (during the group stage, everyone counts as in until then).
+// A team is OUT only when we can be certain:
+//  (a) it lost a knockout match (unambiguous), or
+//  (b) the Round of 32 is FULLY populated (all 32 slots have real teams) and the
+//      team isn't among them — i.e. it definitively didn't qualify.
+// We never infer elimination from a partially-filled bracket, because a team
+// whose match simply hasn't been drawn yet would be wrongly shown as out.
 function computeSurvival(knockouts) {
-  const eliminated = new Set();
-  const inKnockouts = new Set();      // every team that reached the knockouts
-  let knockoutsBegun = false;
+  const eliminated = new Set();      // lost a knockout match
+  const inKnockouts = new Set();     // appears anywhere in the knockout bracket
+
+  const r32 = knockouts.filter(k => k.round === "R32");
+  const r32Filled = r32.filter(k => k.home && k.away).length;
+  // R32 has 16 matches (32 teams). Consider the bracket "complete" only when
+  // every R32 slot is populated.
+  const bracketComplete = r32.length > 0 && r32Filled === r32.length;
 
   knockouts.forEach(k => {
     if (k.home) inKnockouts.add(k.home);
     if (k.away) inKnockouts.add(k.away);
-    if (k.home || k.away) knockoutsBegun = true;
-    // a finished knockout match eliminates the loser
     if (k.status === "FT" && k.home && k.away && k.hg != null && k.awg != null) {
       if (k.hg > k.awg) eliminated.add(k.away);
       else if (k.awg > k.hg) eliminated.add(k.home);
-      // (draws in knockouts go to extra time / pens; the API reports the
-      //  advancing side via the next round, so a level FT score leaves both
-      //  "in" here until the winner appears in the following round)
+      // level FT = extra time / pens; winner appears in the next round, so we
+      // don't eliminate either side from the score alone.
     }
   });
 
-  // Once the bracket is populated, any team not in it didn't qualify.
+  // "Active" view only once the bracket exists at all.
+  const knockoutsBegun = inKnockouts.size > 0;
+
   function isOut(team) {
-    if (eliminated.has(team)) return true;
-    if (knockoutsBegun && !inKnockouts.has(team)) return true;
+    if (eliminated.has(team)) return true;                       // lost a KO game
+    if (bracketComplete && !inKnockouts.has(team)) return true;  // didn't qualify
     return false;
   }
-  return { isOut, knockoutsBegun };
+  return { isOut, knockoutsBegun, bracketComplete };
 }
 
 // ── League table calculation ──────────────────────────────────────────────────
@@ -780,18 +787,20 @@ export default function App() {
 
         {/* ── TEAMS TAB ── */}
         {view === "teams" && (() => {
-          const { isOut, knockoutsBegun } = computeSurvival(knockouts);
-          // Build per-member survival data and sort by teams remaining (desc),
-          // then by name for a stable order.
+          const { isOut, bracketComplete } = computeSurvival(knockouts);
+          // Survival mode (counts + in/out) activates only once the full Round of
+          // 32 is known. Before that we just show the team lists, because a
+          // partially-drawn bracket can't tell us who's really out.
+          const live = bracketComplete;
           const members = Object.entries(FAMILY).map(([name, teams]) => {
-            const status = teams.map(t => ({ team: t, out: isOut(t) }));
+            const status = teams.map(t => ({ team: t, out: live && isOut(t) }));
             const remaining = status.filter(s => !s.out).length;
             return { name, teams, status, remaining };
-          }).sort((a, b) => b.remaining - a.remaining || a.name.localeCompare(b.name));
+          }).sort((a, b) => live ? (b.remaining - a.remaining || a.name.localeCompare(b.name)) : 0);
 
           return (
             <div style={{ maxWidth:720, margin:"0 auto", padding:"16px 12px" }}>
-              {knockoutsBegun && (
+              {live && (
                 <div style={{
                   background:"#1a3a6e", borderRadius:12, padding:"12px 16px", marginBottom:16,
                   border:"1px solid rgba(255,255,255,0.1)",
@@ -811,7 +820,7 @@ export default function App() {
                         background: remaining>0 ? "rgba(255,255,255,0.22)" : "rgba(0,0,0,0.25)",
                         borderRadius:20, padding:"2px 10px", fontSize:12, fontWeight:800,
                       }}>
-                        {knockoutsBegun
+                        {live
                           ? (remaining>0 ? `${remaining} still in` : "knocked out")
                           : `${teams.length} teams`}
                       </span>
@@ -823,7 +832,7 @@ export default function App() {
                           <span style={{ fontSize:13, fontWeight:600, color:"#1a2035", textDecoration: out ? "line-through" : "none" }}>{team}</span>
                           {out
                             ? <span style={{ marginLeft:"auto", fontSize:10, fontWeight:800, color:"#dc2626", letterSpacing:"0.04em" }}>OUT</span>
-                            : knockoutsBegun && <span style={{ marginLeft:"auto", fontSize:10, fontWeight:800, color:"#16a34a", letterSpacing:"0.04em" }}>IN</span>}
+                            : live && <span style={{ marginLeft:"auto", fontSize:10, fontWeight:800, color:"#16a34a", letterSpacing:"0.04em" }}>IN</span>}
                         </div>
                       ))}
                     </div>
