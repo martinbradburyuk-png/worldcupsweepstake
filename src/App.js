@@ -618,7 +618,9 @@ export default function App() {
     const parts = label.split(" "); // ["Sat","13","Jun"]
     return MONTHS[parts[2]] * 100 + parseInt(parts[1], 10);
   };
-  const sortedDates = Object.keys(byDate).sort((a,b) => dateKey(a) - dateKey(b));
+  // Group stage: show most recent / upcoming dates at the top, earliest at the
+  // bottom (descending) so the next games to play surface first.
+  const sortedDates = Object.keys(byDate).sort((a,b) => dateKey(b) - dateKey(a));
 
   // If the league tab is gone (groups closed) but it's still the active view,
   // fall back to a sensible default.
