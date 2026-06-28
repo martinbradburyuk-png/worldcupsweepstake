@@ -543,7 +543,7 @@ export default function App() {
 
   // From Mon 29 Jun, open the app on the Knockouts tab at the current round.
   useEffect(() => {
-    const knockoutsDefaultFrom = new Date("2026-06-29T00:00:00Z");
+    const knockoutsDefaultFrom = new Date("2026-06-28T00:00:00Z");
     if (NOW >= knockoutsDefaultFrom && currentRound) {
       setView("knockouts");
       setSelRound(currentRound);
@@ -572,25 +572,40 @@ export default function App() {
         // Knockout matches: the API returns them ordered by kickoff, grouped by
         // stage. We replace our placeholders for each round in that same order,
         // so team names, dates and times populate the moment a round is drawn.
-        if (Array.isArray(data.knockout)) {
+        if (Array.isArray(data.knockout) && data.knockout.length) {
+          // Build the knockout list directly from the API where it has data.
+          // For each round, if the API has supplied matches, use them verbatim
+          // (real teams, scores, dates, times). For rounds not yet drawn, keep
+          // our placeholder slots so the schedule structure still shows.
           const byStage = {};
           data.knockout.forEach(k => { (byStage[k.stage] = byStage[k.stage]||[]).push(k); });
+          // order each round's API matches by kickoff for stable display
+          Object.values(byStage).forEach(list =>
+            list.sort((a,b) => (a.utcDate||a.date||"").localeCompare(b.utcDate||b.date||"")));
+
           setKnockouts(prev => {
-            const counters = {};
-            return prev.map(slot => {
-              const list = byStage[slot.round];
-              if (!list) return slot;
-              const i = counters[slot.round] || 0;
-              counters[slot.round] = i + 1;
-              const api = list[i];
-              if (!api) return slot;
-              return { ...slot,
-                home: api.home ?? slot.home,
-                away: api.away ?? slot.away,
-                hg: api.hg, awg: api.awg, status: api.status,
-                date: api.date || slot.date,
-                time: api.time || slot.time };
+            const result = [];
+            ROUNDS.forEach(r => {
+              const apiMatches = byStage[r.id];
+              if (apiMatches && apiMatches.length) {
+                // use the API's real matches for this round
+                apiMatches.forEach((api, idx) => {
+                  result.push({
+                    round: r.id,
+                    match: `${r.id}-${idx+1}`,
+                    home: api.home || null,
+                    away: api.away || null,
+                    hg: api.hg, awg: api.awg, status: api.status,
+                    date: api.date || "", time: api.time || "",
+                    venue: api.venue || null,
+                  });
+                });
+              } else {
+                // round not drawn yet: keep our placeholder slots for it
+                prev.filter(k => k.round === r.id).forEach(k => result.push(k));
+              }
             });
+            return result;
           });
         }
         if (data.fetchedAt) setUpdatedAt(new Date(data.fetchedAt));
