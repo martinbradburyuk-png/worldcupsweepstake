@@ -127,6 +127,7 @@ export async function handler() {
           awg: (done || live) && ft ? ft.away : null,
           status: done ? "FT" : live ? "LIVE" : null,
           date, time,
+          venue: m.venue || null,
           utcDate: m.utcDate || null,
         });
         continue;
